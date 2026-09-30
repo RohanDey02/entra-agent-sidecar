@@ -12,6 +12,7 @@ entra:
   blueprintClientId: "<BLUEPRINT_APP_ID>"
   inboundAudience: "<BLUEPRINT_APP_ID>"
   inboundScope: access_as_user
+  acpGatewayAppId: "<ACP_GATEWAY_APP_ID>"
   agentClientId: "<AGENT_APP_ID>"
   gatewayBaseUrl: "https://<GATEWAY_HOST>"
   gatewayScope: "api://<GATEWAY_APP_ID>/access_as_user"

@@ -9,6 +9,7 @@ data:
   tenantId: {{ .Values.entra.tenantId | quote }}
   blueprintClientId: {{ .Values.entra.blueprintClientId | quote }}
   inboundAudience: {{ .Values.entra.inboundAudience | quote }}
+  acpGatewayAppId: {{ .Values.entra.acpGatewayAppId | quote }}
   agentClientId: {{ .Values.entra.agentClientId | quote }}
   gatewayBaseUrl: {{ .Values.entra.gatewayBaseUrl | quote }}
   gatewayScope: {{ .Values.entra.gatewayScope | quote }}

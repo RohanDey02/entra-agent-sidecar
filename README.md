@@ -1,22 +1,22 @@
 # Entra agent sidecar
 
-Python agent and the [Microsoft Entra ID Auth SDK sidecar](https://learn.microsoft.com/en-us/entra/msidweb/agent-id-sdk/overview) in one pod. The app receives a user token and calls a gateway. The sidecar is the only process that talks to Microsoft Entra ID.
+Python agent and the [Microsoft Entra ID Auth SDK sidecar](https://learn.microsoft.com/en-us/entra/msidweb/agent-id-sdk/overview) in one pod. The UI login token stops at the ACP Gateway. This app receives Ta and calls the resource with Tr. The sidecar is the only process that talks to Microsoft Entra ID.
 
 ## Tokens
 
-| Token | Audience / client | Who handles it |
+| Token | Claims | Who handles it |
 | --- | --- | --- |
-| Tc | Blueprint app ID | The caller sends it to this app. The sidecar validates it. |
-| T1 | Agent app ID | The sidecar acquires it with `AgentIdentity`. This app never sees it. |
-| Tr | Gateway app ID. `azp` is the agent app ID | The sidecar exchanges Tc + T1, with the blueprint app ID as the OBO client. This app sends Tr only to the gateway. |
+| Tc | UI login token | The browser sends it to the ACP Gateway. This app never sees it. |
+| Ta | `aud` = blueprint app ID, `azp` = ACP Gateway app ID | The ACP Gateway mints it from Tc. This app forwards it to the sidecar. |
+| T1 | `aud` = `api://AzureADTokenExchange` | The sidecar acquires it for the agent app ID (`fmi_path`). This app never sees it. |
+| Tr | `azp` = agent app ID, `aud` = resource | The sidecar exchanges Ta + T1. This app sends Tr only to the resource. |
 
-The sidecar call is `GET /AuthorizationHeader/Gateway?AgentIdentity=<agent-app-id>` with `Authorization: Bearer <Tc>`. That is the authenticated endpoint from the [sidecar API](https://learn.microsoft.com/en-us/entra/msidweb/agent-id-sdk/endpoints). `RequestAppToken` is not set, so the exchange stays on behalf of the user.
+The exchange follows the [agent on-behalf-of flow](https://learn.microsoft.com/en-us/entra/agent-id/agent-on-behalf-of-oauth-flow). T1 is requested with scope `api://AzureADTokenExchange/.default`. The OBO assertion is Ta, not Tc. The sidecar call is `GET /AuthorizationHeader/Gateway?AgentIdentity=<agent-app-id>` with `Authorization: Bearer <Ta>`.
 
-Three app registrations are involved:
-
-- **Blueprint.** Sidecar `AzureAd__ClientId` and `AzureAd__Audience`. Holds the credential. Tc is issued for this app ID.
-- **Agent identity.** Passed as `AgentIdentity`. T1 is for this app ID, and Tr.`azp` must match it.
-- **Gateway.** Its own app ID. The sidecar requests a delegated scope on that API, and Tr.`aud` must match `GATEWAY_AUDIENCE`.
+- **Blueprint.** Sidecar `AzureAd__ClientId` and `AzureAd__Audience`. Holds the federated credential. Ta is issued for this app ID.
+- **ACP Gateway.** Mints Ta. Ta.`azp` must match `ACP_GATEWAY_APP_ID`.
+- **Agent identity.** Passed as `AgentIdentity`. Tr.`azp` must match it.
+- **Resource.** Tr.`aud` must match `GATEWAY_AUDIENCE`.
 
 ## Pod
 
@@ -30,12 +30,12 @@ This is not GKE Workload Identity for Google APIs. Nothing in the pod impersonat
 
 ## Local run
 
-Copy `.env.example` to `.env` and fill it in. `AZURE_AD_AUDIENCE` is the blueprint app ID. `BLUEPRINT_CLIENT_SECRET` is for this Compose file only.
+Copy `.env.example` to `.env` and fill it in. `AZURE_AD_AUDIENCE` is the blueprint app ID, which is Ta's audience. `BLUEPRINT_CLIENT_SECRET` is for this Compose file only.
 
 ```bash
 docker compose up --build
 curl -s http://127.0.0.1:8080/ready
-curl -s http://127.0.0.1:8080/gateway -H "Authorization: Bearer <Tc>"
+curl -s http://127.0.0.1:8080/gateway -H "Authorization: Bearer <Ta>"
 ```
 
 Compose gives the sidecar its own network namespace, so that file listens on `http://+:5000` and the app uses `http://sidecar:5000`. The sidecar port is not published on the host.

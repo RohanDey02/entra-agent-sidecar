@@ -31,6 +31,16 @@ spec:
           env:
             - name: SIDECAR_URL
               value: {{ .Values.agent.sidecarUrl | quote }}
+            - name: BLUEPRINT_APP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: blueprintClientId
+            - name: ACP_GATEWAY_APP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: acpGatewayAppId
             - name: AGENT_CLIENT_ID
               valueFrom:
                 configMapKeyRef:

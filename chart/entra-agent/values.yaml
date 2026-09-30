@@ -31,10 +31,12 @@ sidecar:
 entra:
   tenantId: ""
   blueprintClientId: ""
-  # Audience of Tc. This is the blueprint app id.
+  # Audience of Ta. The ACP Gateway sets this to the blueprint app id.
   inboundAudience: ""
   inboundScope: access_as_user
-  # AgentIdentity. T1 is acquired for this app id. Tr.azp is this app id.
+  # azp of Ta. This is the ACP Gateway app id, not the agent.
+  acpGatewayAppId: ""
+  # fmi_path for T1. Tr.azp is this agent app id.
   agentClientId: ""
   gatewayBaseUrl: ""
   # Delegated scope on the gateway. Do not use /.default; that asks for an app token.

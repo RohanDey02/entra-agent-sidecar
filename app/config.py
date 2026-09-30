@@ -14,7 +14,9 @@ class ConfigurationError(RuntimeError):
 @dataclass(frozen=True)
 class Settings:
     sidecar_url: str
+    blueprint_app_id: str
     agent_client_id: str
+    acp_gateway_app_id: str
     gateway_base_url: str
     gateway_audience: str
     gateway_path: str
@@ -22,19 +24,15 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        agent_client_id = os.environ.get("AGENT_CLIENT_ID", "").strip()
-        gateway_audience = os.environ.get("GATEWAY_AUDIENCE", "").strip()
-        if not agent_client_id:
-            raise ConfigurationError("AGENT_CLIENT_ID is required")
-        if not gateway_audience or any(char.isspace() for char in gateway_audience):
-            raise ConfigurationError("GATEWAY_AUDIENCE is required")
         return cls(
             sidecar_url=normalize_sidecar_url(
                 os.environ.get("SIDECAR_URL", "http://127.0.0.1:5000")
             ),
-            agent_client_id=agent_client_id,
+            blueprint_app_id=_required("BLUEPRINT_APP_ID"),
+            agent_client_id=_required("AGENT_CLIENT_ID"),
+            acp_gateway_app_id=_required("ACP_GATEWAY_APP_ID"),
             gateway_base_url=normalize_gateway_base_url(os.environ.get("GATEWAY_BASE_URL", "")),
-            gateway_audience=gateway_audience,
+            gateway_audience=_required("GATEWAY_AUDIENCE"),
             gateway_path=normalize_gateway_path(os.environ.get("GATEWAY_PATH", "/")),
         )
 
@@ -42,8 +40,8 @@ class Settings:
 def normalize_sidecar_url(raw: str) -> str:
     """Allow only the pod-local sidecar or the Compose service name.
 
-    Tc is forwarded to this URL. A public sidecar URL would send the user
-    token outside the pod trust boundary.
+    Ta is forwarded to this URL. A public sidecar URL would send that token
+    outside the pod trust boundary.
     """
     parsed = urlparse(raw.strip())
     host = (parsed.hostname or "").lower()
@@ -77,6 +75,13 @@ def normalize_gateway_base_url(raw: str) -> str:
     ):
         raise ConfigurationError("GATEWAY_BASE_URL must be an https URL for the gateway")
     return raw.strip().rstrip("/")
+
+
+def _required(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value or any(char.isspace() for char in value):
+        raise ConfigurationError(f"{name} is required")
+    return value
 
 
 def normalize_gateway_path(raw: str) -> str:

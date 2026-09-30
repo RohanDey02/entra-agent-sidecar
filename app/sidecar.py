@@ -1,8 +1,8 @@
 """Client for the Microsoft Entra ID Auth SDK sidecar.
 
-The sidecar acquires T1 for the agent app id, then exchanges Tc and T1
-for Tr. The OBO client id is the blueprint. This client sends Tc in and
-receives Tr back. It never asks for T1 and never talks to Entra ID.
+The sidecar acquires T1 for api://AzureADTokenExchange, then exchanges
+Ta and T1 for Tr. This client sends Ta in and receives Tr back. It never
+asks for T1 and never talks to Entra ID.
 """
 
 from typing import Any
@@ -44,12 +44,12 @@ class SidecarClient:
             return False
         return response.status_code == 200
 
-    def validate_tc(self, tc: str) -> dict[str, Any]:
-        """Ask the sidecar to validate the inbound user token Tc."""
+    def validate_ta(self, ta: str) -> dict[str, Any]:
+        """Ask the sidecar to validate Ta, the ACP Gateway token."""
         response = self._request(
             "GET",
             "/Validate",
-            headers={"Authorization": f"Bearer {tc}"},
+            headers={"Authorization": f"Bearer {ta}"},
         )
         body = _json_object(response)
         claims = body.get("claims")
@@ -57,19 +57,19 @@ class SidecarClient:
             raise SidecarError(502, "sidecar validation response did not include claims")
         return claims
 
-    def exchange_tc_for_tr(self, tc: str) -> str:
-        """Exchange Tc for a gateway Tr through the sidecar.
+    def exchange_ta_for_tr(self, ta: str) -> str:
+        """Exchange Ta for Tr through the sidecar.
 
-        The sidecar validates Tc (audience: blueprint app id), acquires T1
-        for AgentIdentity (the agent app id), then requests Tr with
-        client id blueprint, assertion=Tc, and client_assertion=T1.
+        The sidecar acquires T1 with audience api://AzureADTokenExchange and
+        fmi_path set to the agent app id, then requests Tr with assertion=Ta
+        and client_assertion=T1.
         """
         service = self._settings.downstream_service
         response = self._request(
             "GET",
             f"/AuthorizationHeader/{service}",
             params={"AgentIdentity": self._settings.agent_client_id},
-            headers={"Authorization": f"Bearer {tc}"},
+            headers={"Authorization": f"Bearer {ta}"},
         )
         header = _json_object(response).get("authorizationHeader")
         if not isinstance(header, str) or not header.startswith("Bearer "):

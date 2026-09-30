@@ -9,7 +9,7 @@ from app.config import (
     normalize_gateway_path,
     normalize_sidecar_url,
 )
-from app.tokens import TokenShapeError, require_gateway_token, safe_claims
+from app.tokens import TokenShapeError, require_actor_token, require_gateway_token, safe_claims
 
 
 def test_sidecar_url_rejects_public_hosts() -> None:
@@ -35,6 +35,21 @@ def test_gateway_path_stays_relative() -> None:
     with pytest.raises(ConfigurationError):
         normalize_gateway_path("/../admin")
     assert normalize_gateway_path("/health") == "/health"
+
+
+def test_ta_must_name_the_blueprint_and_the_acp_gateway() -> None:
+    require_actor_token(
+        {"aud": "blueprint-app-id", "azp": "acp-gateway-app-id"},
+        blueprint_app_id="blueprint-app-id",
+        acp_gateway_app_id="acp-gateway-app-id",
+    )
+    with pytest.raises(TokenShapeError) as caught:
+        require_actor_token(
+            {"aud": "blueprint-app-id", "azp": "some-other-app"},
+            blueprint_app_id="blueprint-app-id",
+            acp_gateway_app_id="acp-gateway-app-id",
+        )
+    assert caught.value.token == "ta"
 
 
 def test_tr_must_name_the_agent_and_the_gateway() -> None:
