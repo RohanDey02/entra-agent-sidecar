@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: entra-agent
+  labels:
+    app.kubernetes.io/name: entra-agent
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  tenantId: {{ .Values.entra.tenantId | quote }}
+  blueprintClientId: {{ .Values.entra.blueprintClientId | quote }}
+  inboundAudience: {{ .Values.entra.inboundAudience | quote }}
+  agentClientId: {{ .Values.entra.agentClientId | quote }}
+  gatewayBaseUrl: {{ .Values.entra.gatewayBaseUrl | quote }}
+  gatewayScope: {{ .Values.entra.gatewayScope | quote }}
+  gatewayAudience: {{ .Values.entra.gatewayAudience | quote }}
+  gatewayPath: {{ .Values.entra.gatewayPath | quote }}

@@ -1,0 +1,58 @@
+replicaCount: 1
+
+agent:
+  image:
+    repository: entra-agent
+    tag: local
+    pullPolicy: IfNotPresent
+  sidecarUrl: http://127.0.0.1:5000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+sidecar:
+  image:
+    repository: mcr.microsoft.com/entra-sdk/auth-sidecar
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  listenUrl: http://127.0.0.1:5000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+entra:
+  tenantId: ""
+  blueprintClientId: ""
+  # Audience of Tc. This is the blueprint app id.
+  inboundAudience: ""
+  inboundScope: access_as_user
+  # AgentIdentity. T1 is acquired for this app id. Tr.azp is this app id.
+  agentClientId: ""
+  gatewayBaseUrl: ""
+  # Delegated scope on the gateway. Do not use /.default; that asks for an app token.
+  gatewayScope: ""
+  # Expected aud on Tr. Often the gateway app id, or api://<gateway-app-id>.
+  gatewayAudience: ""
+  gatewayPath: /
+
+# Projected Kubernetes service account token. Only the sidecar mounts it.
+# Entra federated credentials expect audience api://AzureADTokenExchange.
+credential:
+  tokenAudience: api://AzureADTokenExchange
+  tokenExpirationSeconds: 3600
+  tokenMountPath: /var/run/secrets/entra
+  tokenFileName: token
+
+service:
+  port: 80
+
+networkPolicy:
+  enabled: true

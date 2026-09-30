@@ -1,0 +1,19 @@
+# Replace every placeholder before rendering. Do not commit real tenant or app ids
+# if this overlay is shared.
+
+agent:
+  image:
+    repository: us-docker.pkg.dev/PROJECT/REPO/entra-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+
+entra:
+  tenantId: "<TENANT_ID>"
+  blueprintClientId: "<BLUEPRINT_APP_ID>"
+  inboundAudience: "<BLUEPRINT_APP_ID>"
+  inboundScope: access_as_user
+  agentClientId: "<AGENT_APP_ID>"
+  gatewayBaseUrl: "https://<GATEWAY_HOST>"
+  gatewayScope: "api://<GATEWAY_APP_ID>/access_as_user"
+  gatewayAudience: "<GATEWAY_APP_ID>"
+  gatewayPath: /

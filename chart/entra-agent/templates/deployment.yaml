@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: entra-agent
+  labels:
+    app.kubernetes.io/name: entra-agent
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: entra-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: entra-agent
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: entra-agent
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          imagePullPolicy: {{ .Values.agent.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SIDECAR_URL
+              value: {{ .Values.agent.sidecarUrl | quote }}
+            - name: AGENT_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: agentClientId
+            - name: GATEWAY_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: gatewayBaseUrl
+            - name: GATEWAY_AUDIENCE
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: gatewayAudience
+            - name: GATEWAY_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: gatewayPath
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+
+        - name: sidecar
+          image: "{{ .Values.sidecar.image.repository }}:{{ .Values.sidecar.image.tag }}"
+          imagePullPolicy: {{ .Values.sidecar.image.pullPolicy }}
+          env:
+            - name: AzureAd__Instance
+              value: https://login.microsoftonline.com/
+            - name: AzureAd__TenantId
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: tenantId
+            - name: AzureAd__ClientId
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: blueprintClientId
+            - name: AzureAd__Audience
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: inboundAudience
+            - name: AzureAd__Scopes
+              value: {{ .Values.entra.inboundScope | quote }}
+            - name: AzureAd__ClientCredentials__0__SourceType
+              value: SignedAssertionFilePath
+            - name: AzureAd__ClientCredentials__0__SignedAssertionFileDiskPath
+              value: {{ printf "%s/%s" .Values.credential.tokenMountPath .Values.credential.tokenFileName | quote }}
+            - name: DownstreamApis__Gateway__BaseUrl
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: gatewayBaseUrl
+            - name: DownstreamApis__Gateway__Scopes__0
+              valueFrom:
+                configMapKeyRef:
+                  name: entra-agent
+                  key: gatewayScope
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: Kestrel__Endpoints__Http__Url
+              value: {{ .Values.sidecar.listenUrl | quote }}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: entra-token
+              mountPath: {{ .Values.credential.tokenMountPath | quote }}
+              readOnly: true
+          resources:
+            {{- toYaml .Values.sidecar.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: entra-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: {{ .Values.credential.tokenFileName | quote }}
+                  expirationSeconds: {{ .Values.credential.tokenExpirationSeconds }}
+                  audience: {{ .Values.credential.tokenAudience | quote }}
